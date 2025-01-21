@@ -13,3 +13,8 @@ Regarding input parameters:
 Hardware size:
 ---
 - LUT: 187 FF: 13
+
+Projects that use similar axi IP:
+---
+- https://github.com/nick-nuti/AXI-Burst-to-ZYNQ-DDR
+- https://github.com/nick-nuti/HDMI_OUT_PYNQ_Z2

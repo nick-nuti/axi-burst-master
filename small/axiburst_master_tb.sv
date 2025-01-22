@@ -231,6 +231,7 @@ begin
 
         for(int b = 0; b < u_b_len[i] + 1; b++)
         begin
+            wait(user_data_out_en);
             @(posedge aclk);
             u_data_out[running_index] = user_data_out;
             running_index++;

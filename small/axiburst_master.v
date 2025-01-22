@@ -27,7 +27,9 @@
 
 module axi_burst_master #(
     parameter ADDR_W=32,
-    parameter DATA_W=64
+    parameter DATA_W=64,
+    parameter FLOP_READ_DATA=0,
+    parameter USER_START_HAS_PULSE_CONTROL=0
 )
 (
   /**************** Write Address Channel Signals ****************/
@@ -94,7 +96,7 @@ module axi_burst_master #(
     localparam WRITE            = 3'b001;
     localparam WRITE_RESPONSE   = 3'b010;
     localparam READ_RESPONSE    = 3'b011;
-    localparam DEACTIVATE_START = 3'b100;
+    //localparam DEACTIVATE_START = 3'b100;
        
     reg [2:0] axi_cs, axi_ns;
     reg [7:0] w_data_counter;
@@ -112,73 +114,143 @@ module axi_burst_master #(
         end
     end
    
-    always @ (*)
-    begin
-        case(axi_cs)
-        IDLE:
+    generate
+        if(USER_START_HAS_PULSE_CONTROL)
         begin
-            if(m_axi_awready & user_start & ~user_w_r)
+            always @ (*)
             begin
-                axi_ns = WRITE;
-            end
-
-            else if(m_axi_arready & user_start & user_w_r)
-            begin
-                axi_ns = READ_RESPONSE;
-            end
-           
-            else
-            begin
-                axi_ns = IDLE;
-            end
-        end
-       
-        WRITE:
-        begin
-            if((w_data_counter == user_burst_len_in) && m_axi_wready)
-            begin
-                axi_ns = WRITE_RESPONSE;
-            end
-           
-            else
-            begin
-                axi_ns = WRITE;
-            end
-        end
-       
-        WRITE_RESPONSE:
-        begin
-            if(m_axi_bvalid)
-            begin
-                if(user_start) axi_ns = DEACTIVATE_START;
-                else axi_ns = IDLE;
-            end
-            else axi_ns = WRITE_RESPONSE;
-        end
-
-        READ_RESPONSE:
-        begin
-            if(m_axi_rlast & m_axi_rvalid)
-            begin
-                if(user_start) axi_ns = DEACTIVATE_START;
-                else axi_ns = IDLE;
-            end
-           
-            else
-            begin
-                axi_ns = READ_RESPONSE;
+                case(axi_cs)
+                IDLE:
+                begin
+                    if(m_axi_awready & user_start & ~user_w_r)
+                    begin
+                        axi_ns = WRITE;
+                    end
+        
+                    else if(m_axi_arready & user_start & user_w_r)
+                    begin
+                        axi_ns = READ_RESPONSE;
+                    end
+                   
+                    else
+                    begin
+                        axi_ns = IDLE;
+                    end
+                end
+               
+                WRITE:
+                begin
+                    if((w_data_counter == user_burst_len_in) && m_axi_wready)
+                    begin
+                        axi_ns = WRITE_RESPONSE;
+                    end
+                   
+                    else
+                    begin
+                        axi_ns = WRITE;
+                    end
+                end
+               
+                WRITE_RESPONSE:
+                begin
+                    if(m_axi_bvalid)
+                    begin
+                        axi_ns = IDLE;
+                    end
+                    else axi_ns = WRITE_RESPONSE;
+                end
+        
+                READ_RESPONSE:
+                begin
+                    if(m_axi_rlast & m_axi_rvalid)
+                    begin
+                        axi_ns = IDLE;
+                    end
+                   
+                    else
+                    begin
+                        axi_ns = READ_RESPONSE;
+                    end
+                end
+               
+                default: axi_ns = IDLE;
+                endcase
             end
         end
         
-        DEACTIVATE_START:
+        else
         begin
-            if(user_start) axi_ns = DEACTIVATE_START;
-            else axi_ns = IDLE;
+            localparam DEACTIVATE_START = 3'b100;
+        
+            always @ (*)
+            begin
+                case(axi_cs)
+                IDLE:
+                begin
+                    if(m_axi_awready & user_start & ~user_w_r)
+                    begin
+                        axi_ns = WRITE;
+                    end
+        
+                    else if(m_axi_arready & user_start & user_w_r)
+                    begin
+                        axi_ns = READ_RESPONSE;
+                    end
+                   
+                    else
+                    begin
+                        axi_ns = IDLE;
+                    end
+                end
+               
+                WRITE:
+                begin
+                    if((w_data_counter == user_burst_len_in) && m_axi_wready)
+                    begin
+                        axi_ns = WRITE_RESPONSE;
+                    end
+                   
+                    else
+                    begin
+                        axi_ns = WRITE;
+                    end
+                end
+               
+                WRITE_RESPONSE:
+                begin
+                    if(m_axi_bvalid)
+                    begin
+                        if(user_start) axi_ns = DEACTIVATE_START;
+                        else axi_ns = IDLE;
+                    end
+                    else axi_ns = WRITE_RESPONSE;
+                end
+        
+                READ_RESPONSE:
+                begin
+                    if(m_axi_rlast & m_axi_rvalid)
+                    begin
+                        if(user_start) axi_ns = DEACTIVATE_START;
+                        else axi_ns = IDLE;
+                    end
+                   
+                    else
+                    begin
+                        axi_ns = READ_RESPONSE;
+                    end
+                end
+                
+                DEACTIVATE_START:
+                begin
+                    if(user_start) axi_ns = DEACTIVATE_START;
+                    else axi_ns = IDLE;
+                end
+               
+                default: axi_ns = IDLE;
+                endcase
+            end
         end
-       
-        default: axi_ns = IDLE;
-        endcase
-    end
+    endgenerate
 
 // AXI WRITE ---------------------------------------------------
     always @ (posedge aclk)
@@ -218,14 +290,48 @@ module axi_burst_master #(
         //user_data_out_en  <= #1 (axi_cs==READ_RESPONSE) ? m_axi_rvalid : 0;
     end
 
-    always @ (*)
-    begin
-        user_data_out     <= (axi_cs==READ_RESPONSE) ? m_axi_rdata : 0;
-        user_data_out_en  <= (axi_cs==READ_RESPONSE) ? m_axi_rvalid : 0;
+    generate
+        if(FLOP_READ_DATA)
+        begin
+            always @ (posedge aclk)
+            begin
+                if((axi_cs==IDLE) && (axi_ns!=IDLE))
+                begin
+                    user_data_out     <= 0;
+                    user_data_out_en  <= 0;
 
-        user_status       <= (m_axi_bvalid) ? m_axi_bresp : ((m_axi_rvalid) ? m_axi_rresp : 0);
-    end
+                    user_status       <= 0;
+                end
 
+                else if(axi_cs==WRITE_RESPONSE)
+                begin
+                    user_data_out_en <= m_axi_bvalid;
+
+                    user_status <= m_axi_bresp;
+                end
+                
+                else if(axi_cs==READ_RESPONSE)
+                begin
+                    user_data_out     <= m_axi_rdata;
+                    user_data_out_en  <= m_axi_rvalid;
+
+                    user_status       <= m_axi_rresp;
+                end
+            end
+        end
+        
+        else
+        begin
+            always @ (*)
+            begin
+                user_data_out     <= (axi_cs==READ_RESPONSE) ? m_axi_rdata : 0;
+                user_data_out_en  <= (axi_cs==READ_RESPONSE) ? m_axi_rvalid : 0;
+
+                user_status       <= (m_axi_bvalid) ? m_axi_bresp : ((m_axi_rvalid) ? m_axi_rresp : 0);
+            end
+        end
+    endgenerate
+    
     always @ (*)
     begin
         user_stall_w_data = (~m_axi_wready) ? 1'b0 : 1'b1;
@@ -233,5 +339,5 @@ module axi_burst_master #(
         
         user_free       = (axi_ns == IDLE) ? 1'b1 : 1'b0;
     end
-// STATUS   ---------------------------------------------------
+
 endmodule

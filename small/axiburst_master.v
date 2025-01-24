@@ -85,7 +85,7 @@ module axi_burst_master #(
   input  wire [ADDR_W-1:0]             user_addr_in,
   output reg                           user_free,
   output reg                           user_stall_w_data, // can this be caused by all of these: m_axi_awready, m_axi_awvalid, m_axi_wvalid, m_axi_wready
-  output reg                           user_stall_r_data,
+  input  wire                          user_stall_r_data,
   output reg  [1:0]                    user_status,
   output reg  [DATA_W-1:0]             user_data_out,
   output reg                           user_data_out_en
@@ -162,7 +162,7 @@ module axi_burst_master #(
         
                 READ_RESPONSE:
                 begin
-                    if(m_axi_rlast & m_axi_rvalid)
+                    if(m_axi_rlast & m_axi_rvalid & m_axi_rready)
                     begin
                         axi_ns = IDLE;
                     end
@@ -228,7 +228,7 @@ module axi_burst_master #(
         
                 READ_RESPONSE:
                 begin
-                    if(m_axi_rlast & m_axi_rvalid)
+                    if(m_axi_rlast & m_axi_rvalid & m_axi_rready)
                     begin
                         if(user_start) axi_ns = DEACTIVATE_START;
                         else axi_ns = IDLE;
@@ -285,7 +285,8 @@ module axi_burst_master #(
         m_axi_araddr      <= ((axi_cs==IDLE) && (axi_ns==READ_RESPONSE)) ? user_addr_in : 0;
         m_axi_arlen       <= ((axi_cs==IDLE) && (axi_ns==READ_RESPONSE)) ? user_burst_len_in : 0;
         m_axi_arvalid     <= ((axi_cs==IDLE) && (axi_ns==READ_RESPONSE)) ? 1 : 0;
-        m_axi_rready      <= (axi_cs==READ_RESPONSE) ? 1 : 0;
+        //m_axi_rready      <= (axi_cs==READ_RESPONSE) ? 1 : 0;
+        m_axi_rready      <= (axi_cs==READ_RESPONSE && ~user_stall_r_data) ? 1 : 0;
         //user_data_out     <= #1 (axi_cs==READ_RESPONSE) ? m_axi_rdata : 0;
         //user_data_out_en  <= #1 (axi_cs==READ_RESPONSE) ? m_axi_rvalid : 0;
     end
@@ -324,8 +325,8 @@ module axi_burst_master #(
         begin
             always @ (*)
             begin
-                user_data_out     <= (axi_cs==READ_RESPONSE) ? m_axi_rdata : 0;
-                user_data_out_en  <= (axi_cs==READ_RESPONSE) ? m_axi_rvalid : 0;
+                user_data_out     <= (m_axi_rready & m_axi_rvalid) ? m_axi_rdata : 0;
+                user_data_out_en  <= (m_axi_rready & m_axi_rvalid) ? 1 : 0;
 
                 user_status       <= (m_axi_bvalid) ? m_axi_bresp : ((m_axi_rvalid) ? m_axi_rresp : 0);
             end
@@ -335,7 +336,7 @@ module axi_burst_master #(
     always @ (*)
     begin
         user_stall_w_data = (~m_axi_wready) ? 1'b0 : 1'b1;
-        user_stall_r_data = (~m_axi_rvalid) ? 1'b1 : 1'b0;
+        //user_stall_r_data = (~m_axi_rvalid) ? 1'b1 : 1'b0;
         
         user_free       = (axi_ns == IDLE) ? 1'b1 : 1'b0;
     end

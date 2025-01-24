@@ -111,7 +111,8 @@ reg         user_start;
 
 wire        user_free;
 wire        user_stall_w_data;
-wire        user_stall_r_data;
+//wire        user_stall_r_data;
+reg         user_stall_r_data;
 wire [1:0]  user_status;
 //
 
@@ -158,6 +159,7 @@ begin
     user_start = 'h0;
     user_w_r = 'h0;
     compare_w_r_arrays = 0;
+    user_stall_r_data = 0;
 end
 
 always
@@ -227,7 +229,13 @@ begin
         @(posedge aclk);
         user_start          = 1'd0;
         
-        @(negedge user_stall_r_data);
+        //@(negedge user_stall_r_data);
+        // purposefully adding delay/master not ready for testing
+        wait(user_data_out_en);
+        user_stall_r_data = 1;
+        repeat(3) @(posedge aclk);
+        user_stall_r_data = 0;
+        // purposefully adding delay/master not ready for testing
 
         for(int b = 0; b < u_b_len[i] + 1; b++)
         begin

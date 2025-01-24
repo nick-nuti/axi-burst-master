@@ -1,6 +1,6 @@
 Small AXI Burst master IP design (almost everything is combinational; typically would be driven by other logic; timing @ 100MHz can be tight)
 
-![image](https://github.com/user-attachments/assets/fe8a112b-5d13-476f-b81b-7a4ed7a1b7a7)
+![image](https://github.com/user-attachments/assets/21d6c73b-5f46-4407-a125-4bf1cf8ab192)
 
 ![image](https://github.com/user-attachments/assets/48c1e23f-b931-443b-b814-f9b38de25944)
 

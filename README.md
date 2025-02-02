@@ -2,7 +2,7 @@
 Generic AXI Burst Master IP
 
 - Small : Small and more-combinational implementation of AXI Burst master
-- Regular : In-progress
+- Regular : AXI Burst master with flopped ports and one-stage pipelining implemented
 - Ringbuffer : In-progress
 
 Tutorials:

@@ -8,3 +8,7 @@ Generic AXI Burst Master IP
 Tutorials:
 - https://zipcpu.com/blog/2020/03/23/wbm2axisp.html
 - in-progress...
+
+Reminder:
+---
+- The logic has room for improvement and can be further optimized...

@@ -4,6 +4,11 @@ Regular AXI Burst master IP design (more-stable than "small" design because port
 
 ![image](https://github.com/user-attachments/assets/cdc76fdb-4175-40df-b89d-4b85cb6dd578)
 
+Regarding input parameters:
+---
+- NEED 2 ADD THE FOLLOWING PARAM
+-- MODE : if only Write, only Read, or both Write & Read are required...
+
 NOTE:
 -----
 - IP assumes DESIGNER IS HANDLING THE USER_START PULSE!!! This is because this is a pipelined design

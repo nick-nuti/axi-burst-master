@@ -4,16 +4,22 @@ Regular AXI Burst master IP design (more-stable than "small" design because port
 
 ![image](https://github.com/user-attachments/assets/cdc76fdb-4175-40df-b89d-4b85cb6dd578)
 
+Optimization:
+---
+- Converting FSM to one-hot reduced the FF usage from 194 to 129
+
 Regarding input parameters:
 ---
-- NEED 2 ADD THE FOLLOWING PARAM
--- MODE : if only Write, only Read, or both Write & Read are required...
+- WRITE_EN : only enables the write portion of the AXI Burst master
+- READ_EN : only enables the read portion of the AXI Burst master
+- NOTE: if both WRITE_EN and READ_EN are 0 then the design will not function
 
 NOTE:
 -----
 - IP assumes DESIGNER IS HANDLING THE USER_START PULSE!!! This is because this is a pipelined design
 
-Hardware size:
+Hardware size (out of context synthesis runs without implementation optimizations):
 -----
-(NOTE: sizes are with 64 bit data size and 32 bit address size)
-- LUT: 150 FF: 194
+- if WRITE_EN=1 and READ_EN=1 then pre-optimization synthesis in vivado shows LUT: 143 and FF: 129
+- if WRITE_EN=1 and READ_EN=0 then pre-optimization synthesis in vivado shows LUT: 178 and FF: 129 (this MUST be optimized)
+- if WRITE_EN=0 and READ_EN=1 then pre-optimization synthesis in vivado shows LUT: 28 and FF: 45

@@ -1,34 +1,11 @@
 
 `timescale 1ps / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company:
-// Engineer:
-//
-// Create Date: 07/02/2024 12:15:09 AM
-// Design Name:
-// Module Name: nnuti_axi3_traffic_generator
-// Project Name:
-// Target Devices:
-// Tool Versions:
-// Description:
-//
-// Dependencies:
-//
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-//
-//////////////////////////////////////////////////////////////////////////////////
-
-// MUST make parameter for this...
-// m_axi_awsize and m_axi_arsize can only change in realtime if:
-// - slave supports it
-// - if transfer size is smaller than data size then it must be address-aligned to meet data boundary requirements
 
 module axi_burst_master #(
     parameter ADDR_W=32,
     parameter DATA_W=64,
-    parameter MODE=1 // 0 = write only, 1 = read only, 2 = r/w, >2 = r/w
+    parameter WRITE_EN=1,
+    parameter READ_EN=1
 )
 (
   /**************** Write Address Channel Signals ****************/
@@ -91,11 +68,11 @@ module axi_burst_master #(
 );
    
 // AXI FSM ---------------------------------------------------
-    localparam IDLE             = 4'b0000;
-    localparam ADDRESS          = 4'b0001;
-    localparam WRITE            = 4'b0010;
-    localparam WRITE_RESPONSE   = 4'b0100;
-    localparam READ_RESPONSE    = 4'b1000;
+    localparam IDLE             = 5'b00001;
+    localparam ADDRESS          = 5'b00010;
+    localparam WRITE            = (WRITE_EN) ? 5'b00100 : IDLE;
+    localparam WRITE_RESPONSE   = (WRITE_EN) ? 5'b01000 : IDLE;
+    localparam READ_RESPONSE    = (READ_EN) ? 5'b10000 : IDLE;
 
     wire start_wire;
        
@@ -126,13 +103,13 @@ module axi_burst_master #(
         
         ADDRESS:
         begin
-            if(~user_w_r_ff) // WRITE
+            if(~user_w_r_ff && WRITE_EN) // WRITE
             begin
                 if(m_axi_awready)   axi_ns = WRITE;
                 else                axi_ns = ADDRESS;
             end
 
-            else // READ
+            else if(user_w_r_ff && READ_EN) // READ
             begin
                 if(m_axi_arready)  axi_ns = READ_RESPONSE;
                 else               axi_ns = ADDRESS;
@@ -164,7 +141,7 @@ module axi_burst_master #(
 
         READ_RESPONSE:
         begin
-            if(m_axi_rlast & m_axi_rvalid & m_axi_rready)
+            if(m_axi_rlast)// & m_axi_rvalid & m_axi_rready)
             begin
                 if(start_wire)  axi_ns = ADDRESS;
                 else            axi_ns = IDLE;
@@ -230,8 +207,11 @@ module axi_burst_master #(
                 start_ff        <= 0;
             end
             
-            user_data_strb_ff   <= (~user_w_r) ? user_data_strb : 0;
-            user_data_in_ff     <= (~user_w_r) ? user_data_in : 0;
+            if(WRITE_EN)
+            begin
+                user_data_strb_ff   <= (~user_w_r) ? user_data_strb : 0;
+                user_data_in_ff     <= (~user_w_r) ? user_data_in : 0;
+            end
         end
     end
     
@@ -240,41 +220,30 @@ module axi_burst_master #(
 // System for locking-in next operation via flops ^^^
 
 // READ data out, data out enable, status out
-    always @ (posedge aclk /*or negedge aresetn*/)
+    always @ (posedge aclk)
     begin
-        /*
-        if(~aresetn)
+        if(axi_cs == ADDRESS || axi_cs == IDLE)
         begin
-            user_status_ff          <= 0;
             user_data_out_ff        <= 0;
             user_data_out_valid_ff  <= 0;
+
+            user_status_ff          <= 0;
         end
+        
+        else if(axi_cs == WRITE_RESPONSE && m_axi_bvalid && WRITE_EN)
+        begin
+            user_data_out_valid_ff  <= 1;
+        
+            user_status_ff  <= m_axi_bresp;
+        end
+        
+        else if(axi_cs == READ_RESPONSE && m_axi_rvalid && READ_EN)
+        begin
+            user_data_out_ff        <= m_axi_rdata;
+            user_data_out_valid_ff  <= 1;
 
-        else
-        begin*/
-            if(axi_cs == ADDRESS || axi_cs == IDLE)
-            begin
-                user_data_out_ff        <= 0;
-                user_data_out_valid_ff  <= 0;
-
-                user_status_ff          <= 0;
-            end
-            
-            else if(axi_cs == WRITE_RESPONSE && m_axi_bvalid)
-            begin
-                user_data_out_valid_ff  <= 1;
-            
-                user_status_ff  <= m_axi_bresp;
-            end
-            
-            else if(axi_cs == READ_RESPONSE && m_axi_rvalid)
-            begin
-                user_data_out_ff        <= m_axi_rdata;
-                user_data_out_valid_ff  <= 1;
-
-                user_status_ff          <= m_axi_rresp;
-            end
-        //end
+            user_status_ff          <= m_axi_rresp;
+        end
     end
 
     assign user_status         = user_status_ff;
@@ -284,44 +253,49 @@ module axi_burst_master #(
 
 
 // AXI WRITE ---------------------------------------------------
-    always @ (posedge aclk)
-    begin
-//
-        if(axi_cs == IDLE || axi_cs == WRITE_RESPONSE) w_data_counter <= 'h0;
-       
-        else if(axi_cs == WRITE && m_axi_wready && w_data_counter < user_burst_len_ff)
+    generate
+        if(WRITE_EN)
         begin
-            w_data_counter <= w_data_counter + 1'b1;
+            always @ (posedge aclk)
+            begin
+        //
+                if(axi_cs == IDLE || axi_cs == WRITE_RESPONSE) w_data_counter <= 'h0;
+               
+                else if(axi_cs == WRITE && m_axi_wready && w_data_counter < user_burst_len_ff)
+                begin
+                    w_data_counter <= w_data_counter + 1'b1;
+                end
+               
+                else w_data_counter <= w_data_counter;
+        //
+            end
+            
+            always @ (*)
+            begin
+                m_axi_awvalid <= ((axi_cs==ADDRESS) && (~user_w_r_ff)) ? 1 : 0;
+                m_axi_awlen   <= ((axi_cs==ADDRESS) && (~user_w_r_ff)) ? user_burst_len_ff : 0;
+                m_axi_awaddr  <= ((axi_cs==ADDRESS) && (~user_w_r_ff)) ? user_addr_in_ff : 0;
+                m_axi_wvalid  <= (axi_cs==WRITE) ? 1 : 0;
+                m_axi_wdata   <= (axi_cs==WRITE) ? user_data_in_ff : 0;
+                m_axi_wstrb   <= (axi_cs==WRITE) ? user_data_strb_ff : 0;
+                m_axi_wlast   <= ((axi_cs==WRITE)&&(w_data_counter == user_burst_len_ff)) ? 1'b1 : 1'b0;
+                m_axi_bready  <= ((axi_cs == WRITE_RESPONSE)&& m_axi_bvalid) ? 1'b1 : 'h0;
+            end
         end
-       
-        else w_data_counter <= w_data_counter;
-//
-    end
-    
-    always @ (*)
-    begin
-        m_axi_awvalid <= ((axi_cs==ADDRESS) && (~user_w_r_ff)) ? 1 : 0;
-        m_axi_awlen   <= ((axi_cs==ADDRESS) && (~user_w_r_ff)) ? user_burst_len_ff : 0;
-        m_axi_awaddr  <= ((axi_cs==ADDRESS) && (~user_w_r_ff)) ? user_addr_in_ff : 0;
-        m_axi_wvalid  <= (axi_cs==WRITE) ? 1 : 0;
-        m_axi_wdata   <= (axi_cs==WRITE) ? user_data_in_ff : 0;
-        m_axi_wstrb   <= (axi_cs==WRITE) ? user_data_strb_ff : 0;
-        m_axi_wlast   <= ((axi_cs==WRITE)&&(w_data_counter == user_burst_len_ff)) ? 1'b1 : 1'b0;
-        m_axi_bready  <= ((axi_cs == WRITE_RESPONSE)&& m_axi_bvalid) ? 1'b1 : 'h0;
-    end
+    endgenerate    
 
-// AXI READ ---------------------------------------------------    
-    always @ (*)
-    begin
-        m_axi_araddr      <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? user_addr_in_ff : 0;
-        m_axi_arlen       <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? user_burst_len_ff : 0;
-        m_axi_arvalid     <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? 1 : 0;
-        m_axi_rready      <= (axi_cs==READ_RESPONSE && ~user_stall_r_data) ? 1 : 0;
-    end
+// AXI READ ---------------------------------------------------
+    generate
+        if(READ_EN)
+        begin
+            always @ (*)
+            begin
+                m_axi_araddr      <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? user_addr_in_ff : 0;
+                m_axi_arlen       <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? user_burst_len_ff : 0;
+                m_axi_arvalid     <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? 1 : 0;
+                m_axi_rready      <= (axi_cs==READ_RESPONSE && ~user_stall_r_data) ? 1 : 0;
+            end
+        end
+    endgenerate
     
-    always @ (*)
-    begin
-        user_stall_w_data = (~m_axi_wready) ? 1'b1 : 1'b0;
-    end
-
 endmodule

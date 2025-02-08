@@ -61,7 +61,7 @@ module axi_burst_master #(
   input  wire [ADDR_W-1:0]             user_addr_in,
   output wire                          user_free,
   output reg                           user_stall_w_data, // can this be caused by all of these: m_axi_awready, m_axi_awvalid, m_axi_wvalid, m_axi_wready
-  input  wire                          user_stall_r_data,
+  //input  wire                          user_stall_r_data,
   output wire [1:0]                    user_status,
   output wire [DATA_W-1:0]             user_data_out,
   output wire                          user_data_out_valid
@@ -76,7 +76,7 @@ module axi_burst_master #(
 
     wire start_wire;
        
-    reg [3:0] axi_cs, axi_ns;
+    reg [5:0] axi_cs, axi_ns;
     reg [7:0] w_data_counter;
    
     always @ (posedge aclk)
@@ -280,6 +280,8 @@ module axi_burst_master #(
                 m_axi_wstrb   <= (axi_cs==WRITE) ? user_data_strb_ff : 0;
                 m_axi_wlast   <= ((axi_cs==WRITE)&&(w_data_counter == user_burst_len_ff)) ? 1'b1 : 1'b0;
                 m_axi_bready  <= ((axi_cs == WRITE_RESPONSE)&& m_axi_bvalid) ? 1'b1 : 'h0;
+                
+                user_stall_w_data <= (m_axi_wready) ? 1'b0 : 1'b1;
             end
         end
     endgenerate    
@@ -293,7 +295,7 @@ module axi_burst_master #(
                 m_axi_araddr      <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? user_addr_in_ff : 0;
                 m_axi_arlen       <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? user_burst_len_ff : 0;
                 m_axi_arvalid     <= ((axi_cs==ADDRESS) && (user_w_r_ff)) ? 1 : 0;
-                m_axi_rready      <= (axi_cs==READ_RESPONSE && ~user_stall_r_data) ? 1 : 0;
+                m_axi_rready      <= (axi_cs==READ_RESPONSE /*&& ~user_stall_r_data*/) ? 1 : 0;
             end
         end
     endgenerate

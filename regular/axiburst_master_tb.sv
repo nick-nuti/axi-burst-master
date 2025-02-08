@@ -111,8 +111,7 @@ reg         user_start;
 
 wire        user_free;
 wire        user_stall_w_data;
-//wire        user_stall_r_data;
-reg         user_stall_r_data;
+//reg         user_stall_r_data;
 wire [1:0]  user_status;
 //
 
@@ -159,7 +158,7 @@ begin
     user_start = 'h0;
     user_w_r = 'h0;
     compare_w_r_arrays = 0;
-    user_stall_r_data = 0;
+    //user_stall_r_data = 0;
 end
 
 always
@@ -315,7 +314,7 @@ design_1_wrapper d1w0(
     .user_start_0(user_start),
     .user_status_0(user_status),
     .user_w_r_0(user_w_r),
-    .user_stall_r_data_0(user_stall_r_data),
+    //.user_stall_r_data_0(user_stall_r_data),
     .user_stall_w_data_0(user_stall_w_data)
     );
 

@@ -18,5 +18,5 @@ NOTE:
 Hardware size (out of context synthesis runs without implementation optimizations):
 -----
 - if WRITE_EN=1 and READ_EN=1 then pre-optimization synthesis in vivado shows LUT: 190 and FF: 194
-- if WRITE_EN=1 and READ_EN=0 then pre-optimization synthesis in vivado shows LUT: 178 and FF: 129 (this MUST be optimized)
-- if WRITE_EN=0 and READ_EN=1 then pre-optimization synthesis in vivado shows LUT: 28 and FF: 45
+- if WRITE_EN=1 and READ_EN=0 then pre-optimization synthesis in vivado shows LUT: 179 and FF: 129
+- if WRITE_EN=0 and READ_EN=1 then pre-optimization synthesis in vivado shows LUT: 50 and FF: 112

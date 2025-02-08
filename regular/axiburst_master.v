@@ -183,8 +183,8 @@ module axi_burst_master #(
             //
             user_w_r_ff             <= 0;
             user_burst_len_ff       <= 0;
-            user_data_strb_ff       <= 0;
-            user_data_in_ff         <= 0;
+            //user_data_strb_ff       <= 0;
+            //user_data_in_ff         <= 0;
             user_addr_in_ff         <= 0;
         end
         
@@ -207,13 +207,35 @@ module axi_burst_master #(
                 start_ff        <= 0;
             end
             
+            /*
             if(WRITE_EN)
             begin
                 user_data_strb_ff   <= (~user_w_r) ? user_data_strb : 0;
                 user_data_in_ff     <= (~user_w_r) ? user_data_in : 0;
             end
+            */
         end
     end
+    
+    generate
+        if(WRITE_EN)
+        begin
+            always @ (posedge aclk)
+            begin
+                if(~aresetn)
+                begin
+                    user_data_strb_ff       <= 0;
+                    user_data_in_ff         <= 0;
+                end
+                
+                else
+                begin
+                    user_data_strb_ff   <= (~user_w_r) ? user_data_strb : 0;
+                    user_data_in_ff     <= (~user_w_r) ? user_data_in : 0;
+                end
+            end
+        end
+    endgenerate
     
     assign user_next_feed_in   = (((axi_cs == WRITE_RESPONSE) && (m_axi_bvalid)) || ((axi_cs == READ_RESPONSE) && (m_axi_rlast)) || (axi_cs == IDLE)) ? 1 : 0;
     assign user_free           = (((axi_ns == WRITE_RESPONSE) || (axi_ns == READ_RESPONSE) || (axi_ns == IDLE)) && ~start_ff) ? 1 : 0;
